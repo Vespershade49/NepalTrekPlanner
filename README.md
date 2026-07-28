@@ -1,4 +1,4 @@
-# Nepal Trek Planner 🏔️
+# Nepal Tourism and Trek Planner 🏔️
 
 A comprehensive C++ and Qt-based desktop application designed to streamline trek planning, route optimization, guide allocation, and budget estimation for trekking in Nepal.
 
@@ -21,7 +21,7 @@ A comprehensive C++ and Qt-based desktop application designed to streamline trek
 * **Language:** C++11 or higher
 * **Framework:** Qt (Qt Widgets / Qt Creator)
 * **Database:** MySQL
-* **Build Tool:** qmake (`NepalTrekPlanner.pro`)
+* **Build Tool:** qmake (`NepalTrek.pro`)
 
 ---
 
