@@ -25,15 +25,6 @@ A comprehensive C++ and Qt-based desktop application designed to streamline trek
 
 ---
 
-##  Setup & Installation Instructions
-
-### 1. Database Setup
-1. Open your MySQL client (e.g., MySQL Workbench or Command Line).
-2. Execute the provided script to set up schema tables, views, procedures, and sample data:
-   ```sql
-   SOURCE nepal_trek_planner.sql;
-   ## 👥 Project Contributors
-
 | Name | Roll No. | Role & Contribution |
 | :--- | :---: | :--- |
 | **Prabesh Regmi** | 01 | UI Layout, Shell Architecture & Navigation |
