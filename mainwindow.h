@@ -32,6 +32,12 @@ struct TripPlan {
     string accommodation = "budget";
     bool hasCalculatedCost = false;
     double totalCost = 0;
+    // True only if this trip matches a real row in the Bookings table -
+    // false means it's just a draft plan from Budget Calculator that
+    // hasn't been confirmed yet. Recalculating in Budget Calculator
+    // always resets this to false, since a new calculation is a new
+    // draft until it's actually booked again.
+    bool isBooked = false;
 };
 
 class MainWindow : public QMainWindow
@@ -50,8 +56,6 @@ private slots:
     void onChangePassword();
     void onLogout();
     void onSearchSpots();
-    void onFindTrek();
-    void onUseTrekForTrip();          // "Use this trek" in Plan a Trek
     void onCalculateBudget();
     void onProceedToBooking();        // "Book This Trip" in Budget Calculator
     void onFindRoute();
@@ -82,9 +86,13 @@ private:
 
     // ── The one shared piece of state that links every tab ─────
     TripPlan currentTrip;
+    TripPlan bookedTrip;              // Declared to fix undeclared identifier error
+    void loadExistingTripFromDatabase(); // seeds currentTrip from an existing DB booking, if any
     void updateTripBar();             // refreshes the summary bar text
     void applyTripToBudgetTab();      // pushes currentTrip into the Budget tab widgets
     void applyTripToBookingTab();     // pushes currentTrip into the Bookings tab widgets
+    bool isSpotReachableFromTrek(const TouristSpot &spot, const TrekRoute &trek);
+    void refreshBudgetSpotsList();    // rebuilds the spot checklist for whichever trek is selected
 
     QTabWidget *tabs;
 
@@ -95,24 +103,16 @@ private:
     // ---- Tab 1: Explore Tourist Spots ----
     QComboBox      *categoryCombo;
     QLineEdit      *nameSearchEdit;
-    QDoubleSpinBox *maxBudgetSpin;
     QPushButton    *searchSpotsBtn;
     QTableWidget   *spotsTable;
 
-    // ---- Tab 2: Plan a Trek ----
-    QComboBox      *fitnessCombo;
-    QSpinBox       *daysSpin;
-    QDoubleSpinBox *trekBudgetSpin;
-    QPushButton    *findTrekBtn;
-    QTableWidget   *treksTable;
-    QPushButton    *useTrekBtn;
-
-    // ---- Tab 3: Budget Calculator ----
+    // ---- Tab 2: Budget Calculator ----
     QComboBox      *budgetTrekCombo;      // pre-selected from Plan a Trek, but still changeable here
     QListWidget    *budgetSpotsList;
     QSpinBox       *budgetDaysSpin;
     QComboBox      *accommodationCombo;
     QSpinBox       *numPeopleSpin;
+    QDoubleSpinBox *budgetLimitSpin;
     QPushButton    *calculateBudgetBtn;
     QTextEdit      *budgetResultText;
     QPushButton    *saveItineraryBtn;
@@ -122,6 +122,7 @@ private:
     // ---- Tab 4: Route Optimizer (Dijkstra) ----
     QComboBox      *startCityCombo;
     QComboBox      *destCityCombo;
+    QDoubleSpinBox *routeBudgetSpin;
     QPushButton    *findRouteBtn;
     QTextEdit      *routeResultText;
 
@@ -176,7 +177,6 @@ private:
 
     // Build each tab, return the finished page widget
     QWidget* setupSpotsTab();
-    QWidget* setupTrekTab();
     QWidget* setupBudgetTab();
     QWidget* setupRouteTab();
     QWidget* setupEmergencyTab();
@@ -184,7 +184,6 @@ private:
 
     // Helpers
     void populateSpotsTable(const std::vector<TouristSpot>& spots);
-    void populateTreksTable(const std::vector<TrekRoute>& treks);
     void populateBookingsTable(const std::vector<BookingDetail>& bookings);
     void populateGuidesTable(const std::vector<Guide>& guides);
     void populateReviewsTable(const std::vector<Review>& reviews);
