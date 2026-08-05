@@ -32,3 +32,4 @@ A comprehensive C++ and Qt-based desktop application designed to streamline trek
 | **Kshitij Sen** | 09 | Backend Engine, Route Optimizer & System Integration |
 | **Sudin Shrestha** | 25 | UI Component Styling, Itinerary & File Export Modules |
 | **Agrim Shrestha** | 28 | Data Structures, Build Configuration & Entity Models |
+ 
