@@ -1,3 +1,7 @@
 build/
 .cache/
 *.pro.user
+build/
+.qtcreator/
+.DS_Store
+*.pro.user
