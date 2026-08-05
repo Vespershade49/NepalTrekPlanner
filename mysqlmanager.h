@@ -121,6 +121,8 @@ public:
         QSqlQuery query(
             "SELECT guide_id, name, license_number, languages, experience_years, rating, contact, daily_rate FROM Guides"
             );
+        if (query.lastError().isValid())
+            qDebug() << "fetchGuides() query error:" << query.lastError().text();
         while (query.next()) {
             guides.push_back(Guide(
                 query.value(0).toInt(),
@@ -683,3 +685,5 @@ public:
 };
 
 #endif // MYSQLMANAGER_H
+
+

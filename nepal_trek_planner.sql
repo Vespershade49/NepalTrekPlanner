@@ -42,7 +42,8 @@ CREATE TABLE Guides (
     languages VARCHAR(100),
     experience_years INT,
     rating DECIMAL(3,2) CHECK (rating BETWEEN 0 AND 5),
-    contact VARCHAR(20)
+    contact VARCHAR(20),
+    daily_rate DECIMAL(10,2) NOT NULL DEFAULT 1500.00 -- NPR/day charged when this guide is assigned to a booking
 );
 
 CREATE TABLE Bookings (
@@ -100,12 +101,12 @@ INSERT INTO Treks (name, region, difficulty_level, duration_days, base_cost, max
 ('Upper Mustang', 'Mustang', 'Hard', 12, 1800.00, 3840, 'Restricted-area trek through the former Kingdom of Lo.'),
 ('Manaslu Circuit', 'Gorkha', 'Extreme', 16, 1600.00, 5106, 'Remote circuit around the eighth highest mountain in the world.');
 
-INSERT INTO Guides (name, license_number, languages, experience_years, rating, contact) VALUES
-('Ram Tamang', 'NTB-1021', 'Nepali, English', 8, 4.80, '9801111111'),
-('Sita Sherpa', 'NTB-2045', 'Nepali, English, Japanese', 12, 4.95, '9802222222'),
-('Dawa Sherpa', 'NTB-3067', 'Nepali, English, Mandarin', 15, 4.90, '9803333333'),
-('Kamal Rai', 'NTB-4089', 'Nepali, English, Hindi', 5, 4.50, '9804444444'),
-('Nima Gurung', 'NTB-5102', 'Nepali, English, German', 10, 4.70, '9805555555');
+INSERT INTO Guides (name, license_number, languages, experience_years, rating, contact, daily_rate) VALUES
+('Ram Tamang', 'NTB-1021', 'Nepali, English', 8, 4.80, '9801111111', 2000.00),
+('Sita Sherpa', 'NTB-2045', 'Nepali, English, Japanese', 12, 4.95, '9802222222', 3000.00),
+('Dawa Sherpa', 'NTB-3067', 'Nepali, English, Mandarin', 15, 4.90, '9803333333', 3200.00),
+('Kamal Rai', 'NTB-4089', 'Nepali, English, Hindi', 5, 4.50, '9804444444', 1500.00),
+('Nima Gurung', 'NTB-5102', 'Nepali, English, German', 10, 4.70, '9805555555', 2200.00);
 
 INSERT INTO Permits (trek_id, permit_name, cost, issuing_authority) VALUES
 (1, 'Sagarmatha National Park Entry', 30.00, 'Dept of National Parks'),
@@ -265,14 +266,25 @@ END //
 -- Assign a guide, but block it if that guide is already on another
 -- active (Pending/Confirmed) booking. This is the guide-locking fix -
 -- a guide can't be double-booked onto two active trips at once.
+--
+-- On a successful assignment, the guide's fee (daily_rate * the
+-- trek's duration_days) is added straight onto Bookings.total_cost -
+-- a guide wasn't free before, and now their cost actually shows up in
+-- what the trekker owes, on top of whatever the Budget Calculator
+-- already worked out for trek/accommodation/food/transport.
 CREATE PROCEDURE sp_assign_guide(
     IN p_booking_id INT,
     IN p_guide_id INT,
     OUT p_success BOOLEAN,
-    OUT p_message VARCHAR(255)
+    OUT p_message VARCHAR(255),
+    OUT p_fee_added DECIMAL(10,2)
 )
 BEGIN
     DECLARE conflict_count INT DEFAULT 0;
+    DECLARE v_daily_rate DECIMAL(10,2);
+    DECLARE v_duration_days INT;
+
+    SET p_fee_added = 0;
 
     SELECT COUNT(*) INTO conflict_count
     FROM Booking_Guides bg
@@ -294,6 +306,20 @@ BEGIN
 
     ELSE
         INSERT INTO Booking_Guides (booking_id, guide_id) VALUES (p_booking_id, p_guide_id);
+
+        SELECT g.daily_rate, t.duration_days
+        INTO v_daily_rate, v_duration_days
+        FROM Bookings b
+        JOIN Treks t ON b.trek_id = t.trek_id
+        JOIN Guides g ON g.guide_id = p_guide_id
+        WHERE b.booking_id = p_booking_id;
+
+        SET p_fee_added = v_daily_rate * v_duration_days;
+
+        UPDATE Bookings
+        SET total_cost = total_cost + p_fee_added
+        WHERE booking_id = p_booking_id;
+
         SET p_success = TRUE;
         SET p_message = 'Guide assigned successfully.';
     END IF;
@@ -337,3 +363,25 @@ BEGIN
 END //
 
 DELIMITER ;
+
+-- ============================================================
+-- 7. NON-DESTRUCTIVE MIGRATION (guide daily_rate + fee-on-assign)
+-- ============================================================
+-- Running the whole script above drops and recreates the database,
+-- which wipes any real users/bookings you already have. If you don't
+-- want that, run ONLY the block below against your existing database
+-- instead of the full script - it adds the new column and replaces
+-- sp_assign_guide with the fee-charging version, without touching any
+-- existing rows.
+--
+-- ALTER TABLE Guides ADD COLUMN daily_rate DECIMAL(10,2) NOT NULL DEFAULT 1500.00;
+-- UPDATE Guides SET daily_rate = 2000.00 WHERE license_number = 'NTB-1021';
+-- UPDATE Guides SET daily_rate = 3000.00 WHERE license_number = 'NTB-2045';
+-- UPDATE Guides SET daily_rate = 3200.00 WHERE license_number = 'NTB-3067';
+-- UPDATE Guides SET daily_rate = 1500.00 WHERE license_number = 'NTB-4089';
+-- UPDATE Guides SET daily_rate = 2200.00 WHERE license_number = 'NTB-5102';
+--
+-- DROP PROCEDURE IF EXISTS sp_assign_guide;
+-- DELIMITER //
+-- (then paste the sp_assign_guide CREATE PROCEDURE block from section 5 above)
+-- DELIMITER ;

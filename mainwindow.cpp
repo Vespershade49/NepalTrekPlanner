@@ -1121,7 +1121,7 @@ void MainWindow::refreshAvailableGuideCombo()
     assignGuideCombo->setEnabled(true);
     for (const Guide &g : available)
         assignGuideCombo->addItem(
-            QString::fromStdString(g.name) + QString(" (%1 NPR/day)").arg(g.dailyRate, 0, 'f', 0),
+            QString::fromStdString(g.name),
             g.guideId);
 }
 
@@ -1216,6 +1216,7 @@ void MainWindow::onCreateBooking()
 void MainWindow::onRefreshBookings()
 {
     populateBookingsTable(mysqlManager.fetchBookingDetailsForUser(currentUserId));
+    populateGuidesTable(mysqlManager.fetchGuides());
     refreshAvailableGuideCombo();
 }
 
@@ -1277,7 +1278,6 @@ void MainWindow::onAssignGuide()
     }
 
     int bookingId = bookingsTable->item(row, 0)->text().toInt();
-    QString bookingTrekName = bookingsTable->item(row, 2)->text();
 
     QString message;
     double feeAdded = 0.0;
@@ -1285,31 +1285,15 @@ void MainWindow::onAssignGuide()
 
     if (ok) {
         populateBookingsTable(mysqlManager.fetchBookingDetailsForUser(currentUserId));
-        refreshAvailableGuideCombo(); // that guide is no longer free
+        refreshAvailableGuideCombo();
 
-        // Roll the fee into the trip that's actively shown in the trip
-        // bar / Profile summary too, but only if this booking is the
-        // same trek that trip is tracking - otherwise it'd misattribute
-        // one trek's guide fee onto a totally different trip.
-        if (bookingTrekName == QString::fromStdString(currentTrip.trek.name)) {
-            currentTrip.totalCost += feeAdded;
-            currentTrip.guideFee += feeAdded;
-            updateTripBar();
-        }
-
-        QMessageBox::information(this, "Guide Assigned",
-                                 QString("%1\n\nGuide fee added: %2 NPR (their daily rate \u00d7 the trek's duration). "
-                                         "The booking's total cost has been updated.")
-                                     .arg(message)
-                                     .arg(feeAdded, 0, 'f', 0));
+        // Simply show "Guide assigned successfully." without fee details or total cost updates
+        QMessageBox::information(this, "Guide Assigned", message);
     } else {
-        // This is the guide-locking rule in action - e.g. the guide
-        // just got taken by someone else's booking in the meantime.
         QMessageBox::warning(this, "Could Not Assign Guide", message);
         refreshAvailableGuideCombo();
     }
 }
-
 void MainWindow::onLoadReviews()
 {
     int trekId = reviewsTrekCombo->currentData().toInt();
@@ -1333,3 +1317,4 @@ void MainWindow::onSubmitReview()
         QMessageBox::warning(this, "Review Blocked", errorMessage);
     }
 }
+
